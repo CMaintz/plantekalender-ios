@@ -48,7 +48,8 @@ public final class GardenModel {
 
     public func plant(_ plantId: String, in areaId: String?) async {
         error = await failure {
-            _ = try await api.addItem(gardenId: gardenId, item: NewItem(plantId: plantId, status: "active", areaId: areaId))
+            _ = try await api.addItem(
+                gardenId: gardenId, item: NewItem(plantId: plantId, status: "active", areaId: areaId))
         }
         if error == nil { await load() }
     }

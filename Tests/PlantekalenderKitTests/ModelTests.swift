@@ -62,7 +62,9 @@ final class FakeAPI: PlantekalenderAPI, @unchecked Sendable {
 
     func addHarvest(gardenId: String, harvest: NewHarvest) async throws -> Harvest {
         writes.append("harvest \(harvest.itemId) \(harvest.amount) \(harvest.unit) \(harvest.harvestedOn)")
-        return Harvest(id: "h1", plantId: "kartoffel", harvestedOn: harvest.harvestedOn, amount: harvest.amount, unit: harvest.unit)
+        return Harvest(
+            id: "h1", plantId: "kartoffel", harvestedOn: harvest.harvestedOn, amount: harvest.amount, unit: harvest.unit
+        )
     }
 
     func deleteHarvest(gardenId: String, harvestId: String) async throws { writes.append("delete \(harvestId)") }
@@ -83,7 +85,9 @@ final class ModelTests: XCTestCase {
     let api = FakeAPI()
 
     func task(_ key: String, _ bucket: String, status: String = "open") -> BoardTask {
-        BoardTask(key: key, origin: "generated", title: key, start: "2026-05-01", end: "2026-06-01", status: status, bucket: bucket)
+        BoardTask(
+            key: key, origin: "generated", title: key, start: "2026-05-01", end: "2026-06-01", status: status,
+            bucket: bucket)
     }
 
     func testKeepsTheTokenOnceSignedIn() async {
@@ -145,7 +149,9 @@ final class ModelTests: XCTestCase {
     }
 
     func testChoosesThePlantingAHarvestTaskPointsAtEvenWhenPlanned() async {
-        api.items = [Item(id: "i0", plantId: "gulerod", status: "active"), Item(id: "i1", plantId: "tomat", status: "planned")]
+        api.items = [
+            Item(id: "i0", plantId: "gulerod", status: "active"), Item(id: "i1", plantId: "tomat", status: "planned"),
+        ]
         let model = HarvestModel(gardens: api, api: api, gardenId: "g1", preselect: "i1", now: may20)
         await model.load()
         XCTAssertEqual(model.itemId, "i1")
@@ -159,7 +165,8 @@ final class ModelTests: XCTestCase {
             Item(id: "i3", plantId: "kaal", status: "active", areaId: "gone"),
         ]
         let groups = groupByArea([bed], items)
-        XCTAssertEqual(groups.map { [$0.area?.name ?? "-"] + $0.items.map(\.id) }, [["Højbed", "i1"], ["-", "i2", "i3"]])
+        XCTAssertEqual(
+            groups.map { [$0.area?.name ?? "-"] + $0.items.map(\.id) }, [["Højbed", "i1"], ["-", "i2", "i3"]])
     }
 
     func testFormatsAmountsTheDanishWay() {

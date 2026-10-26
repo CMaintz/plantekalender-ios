@@ -18,7 +18,9 @@ public func errorText(_ error: Error) -> String {
     return "Noget gik galt. Prøv igen."
 }
 
-public let harvestUnits: [(key: String, label: String)] = [("kg", "kg"), ("g", "g"), ("stk", "stk."), ("bundt", "bundt")]
+public let harvestUnits: [(key: String, label: String)] = [
+    ("kg", "kg"), ("g", "g"), ("stk", "stk."), ("bundt", "bundt"),
+]
 
 /// Accepts both "2,5" and "2.5", since Danish keyboards give a comma. Nil unless positive.
 public func parseAmount(_ text: String) -> Double? {

@@ -23,7 +23,8 @@ public final class LoginModel {
         defer { busy = false }
         let email = email.trimmingCharacters(in: .whitespaces)
         error = await failure {
-            let auth = registering
+            let auth =
+                registering
                 ? try await api.register(email: email, password: password)
                 : try await api.login(email: email, password: password)
             guard let token = auth.token else { throw APIError(status: 0, code: "no_token") }

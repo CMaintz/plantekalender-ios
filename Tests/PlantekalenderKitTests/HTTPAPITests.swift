@@ -1,6 +1,6 @@
 import Foundation
 #if canImport(FoundationNetworking)
-import FoundationNetworking
+    import FoundationNetworking
 #endif
 import XCTest
 @testable import PlantekalenderKit
@@ -53,11 +53,16 @@ final class HTTPAPITests: XCTestCase {
     }
 
     func testReadsABoardWithFieldsThisVersionDoesNotKnow() async throws {
-        client.replies = [(200, #"""
-            [{"key":"i1:tomat:plant-out:2026","origin":"generated","title":"Udplant tomater",
-              "start":"2026-05-17","end":"2026-06-09","status":"open","bucket":"now","newField":1,
-              "task":{"itemId":"i1","plantId":"tomat","activity":"plant-out","frostSensitive":true}}]
-            """#)]
+        client.replies = [
+            (
+                200,
+                #"""
+                [{"key":"i1:tomat:plant-out:2026","origin":"generated","title":"Udplant tomater",
+                  "start":"2026-05-17","end":"2026-06-09","status":"open","bucket":"now","newField":1,
+                  "task":{"itemId":"i1","plantId":"tomat","activity":"plant-out","frostSensitive":true}}]
+                """#
+            )
+        ]
         let board = try await api().board(gardenId: "g1")
         XCTAssertEqual(board.map(\.bucket), ["now"])
         XCTAssertEqual(board.first?.task?.plantId, "tomat")
@@ -87,10 +92,15 @@ final class HTTPAPITests: XCTestCase {
     }
 
     func testReadsAHarvestWhosePlantingWasDeletedWhichComesWithANullItemId() async throws {
-        client.replies = [(200, #"""
-            [{"id":"h1","itemId":null,"plantId":"kartoffel","areaId":null,
-              "harvestedOn":"2026-07-20","amount":2.5,"unit":"kg","note":null}]
-            """#)]
+        client.replies = [
+            (
+                200,
+                #"""
+                [{"id":"h1","itemId":null,"plantId":"kartoffel","areaId":null,
+                  "harvestedOn":"2026-07-20","amount":2.5,"unit":"kg","note":null}]
+                """#
+            )
+        ]
         let harvests = try await api().harvests(gardenId: "g1", year: 2026)
         XCTAssertNil(harvests.first?.itemId)
     }
