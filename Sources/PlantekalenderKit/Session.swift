@@ -1,0 +1,52 @@
+import Foundation
+
+/// Where the signed-in user's bearer token lives: the Keychain in the app, memory in tests.
+@MainActor
+public protocol SessionStore: AnyObject {
+    func signIn(token: String)
+    func signOut()
+}
+
+/// The calendar day in Denmark, matching the server's notion of today, `plusDays` later.
+/// Days are counted on the Danish calendar, so a week stays a week across a DST change.
+public func isoDay(_ date: Date, plusDays: Int = 0) -> String {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: "Europe/Copenhagen") ?? .current
+    let day = calendar.date(byAdding: .day, value: plusDays, to: date) ?? date
+    let c = calendar.dateComponents([.year, .month, .day], from: day)
+    return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+}
+
+/// Runs `operation` and returns its failure as Danish text, or nil when it succeeded.
+@MainActor
+func failure(of operation: () async throws -> Void) async -> String? {
+    do {
+        try await operation()
+        return nil
+    } catch is CancellationError {
+        return nil
+    } catch {
+        return errorText(error)
+    }
+}
+
+/// Whether a response means the stored session is gone. A 401 on /api/auth is a wrong password,
+/// which the login screen explains itself; a 401 for a request sent with an older token says
+/// nothing about the session that replaced it.
+public func sessionExpired(status: Int, path: String, sentToken: String?, currentToken: String?) -> Bool {
+    status == 401 && !path.hasPrefix("/api/auth/") && sentToken == currentToken
+}
+
+/// Hands out a number per load, so a load that finishes after a newer one has started can tell
+/// its answer is stale and drop it instead of overwriting newer state.
+@MainActor
+struct LoadTicket {
+    private var latest = 0
+
+    mutating func next() -> Int {
+        latest += 1
+        return latest
+    }
+
+    func isCurrent(_ ticket: Int) -> Bool { ticket == latest }
+}

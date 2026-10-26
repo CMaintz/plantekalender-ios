@@ -1,0 +1,43 @@
+# Foundry verb interface for a Swift package plus a SwiftUI app. See CMaintz/foundry CONTRACT.md.
+# The verbs cover PlantekalenderKit (models, API client, view models), which builds and tests on
+# any platform with a Swift 6 toolchain; the app target needs Xcode and is built by `app:build`.
+
+[tools]
+"aqua:yonaskolb/XcodeGen" = "2.46.0"
+
+[tasks.fix]
+description = "Auto-format (swift-format)"
+run = "swift format format --in-place --recursive Package.swift Sources Tests App"
+
+[tasks.lint]
+description = "Style (swift-format, strict)"
+run = "swift format lint --strict --recursive Package.swift Sources Tests App"
+
+[tasks.typecheck]
+description = "Compilation is Swift's type check, tests included"
+run = "swift build --build-tests"
+
+[tasks.test]
+description = "PlantekalenderKit tests: the API client against a recording client, view models against a fake API"
+run = "swift test"
+
+[tasks.audit]
+description = "Dependency CVEs; the package has no third-party dependencies yet, so there is no lockfile to scan"
+# Package.resolved appears with the first dependency; osv-scanner then scans it.
+run = "if [ -f Package.resolved ]; then osv-scanner scan source --lockfile=Package.resolved; else echo 'no dependencies'; fi"
+
+[tasks."app:build"]
+description = "Generate the Xcode project and build the app for the simulator (macOS with Xcode only)"
+run = [
+    "xcodegen generate --quiet",
+    "xcodebuild -project Plantekalender.xcodeproj -scheme Plantekalender -destination 'generic/platform=iOS Simulator' -quiet build CODE_SIGNING_ALLOWED=NO",
+]
+
+[tasks.gate]
+description = "The oracle. Sequential - the verbs must never be mise `depends` (those run in parallel)."
+run = [
+    "mise run lint",
+    "mise run typecheck",
+    "mise run test",
+    "mise run audit",
+]
