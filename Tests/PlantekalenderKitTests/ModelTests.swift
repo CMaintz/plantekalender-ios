@@ -213,6 +213,16 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(model.sections.flatMap(\.tasks).map(\.key), ["new"])
     }
 
+    func testCountsTheDayInDenmarkWhereItIsAlreadyTomorrowLateInTheUTCEvening() {
+        // 15 July 2026, 22:30 UTC is 00:30 on 16 July in Copenhagen.
+        XCTAssertEqual(isoDay(Date(timeIntervalSince1970: 1_784_154_600)), "2026-07-16")
+    }
+
+    func testAddsCalendarDaysAcrossTheEndOfSummerTime() {
+        // 24 October 2026, 22:30 UTC is 00:30 on the 25th, the night summer time ends; that day has 25 hours.
+        XCTAssertEqual(isoDay(Date(timeIntervalSince1970: 1_792_881_000), plusDays: 1), "2026-10-26")
+    }
+
     func testSignsOutOnlyWhenTheServerRejectsTheCurrentSession() {
         XCTAssertTrue(sessionExpired(status: 401, path: "/api/gardens/g1/board", sentToken: "t1", currentToken: "t1"))
         XCTAssertFalse(sessionExpired(status: 401, path: "/api/auth/login", sentToken: "t1", currentToken: "t1"))
