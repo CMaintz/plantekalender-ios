@@ -37,8 +37,15 @@ final class FakeAPI: PlantekalenderAPI, @unchecked Sendable {
         return [Garden(id: "g1", name: "Have")]
     }
     func createGarden(name: String) async throws -> Garden { Garden(id: "g2", name: name) }
-    func areas(gardenId: String) async throws -> [Area] { [] }
-    func items(gardenId: String) async throws -> [Item] { items }
+    func areas(gardenId: String) async throws -> [Area] {
+        if offline { throw URLError(.notConnectedToInternet) }
+        return []
+    }
+
+    func items(gardenId: String) async throws -> [Item] {
+        if offline { throw URLError(.notConnectedToInternet) }
+        return items
+    }
 
     func addItem(gardenId: String, item: NewItem) async throws -> Item {
         writes.append("item \(item.plantId)")
@@ -61,7 +68,8 @@ final class FakeAPI: PlantekalenderAPI, @unchecked Sendable {
     func alerts(gardenId: String) async throws -> [FrostAlert] { [] }
 
     func harvests(gardenId: String, year: Int) async throws -> [Harvest] {
-        harvestList.filter { $0.harvestedOn.hasPrefix("\(year)") }
+        if offline { throw URLError(.notConnectedToInternet) }
+        return harvestList.filter { $0.harvestedOn.hasPrefix("\(year)") }
     }
 
     func addHarvest(gardenId: String, harvest: NewHarvest) async throws -> Harvest {
@@ -233,6 +241,29 @@ final class ModelTests: XCTestCase {
         await model.load()
         XCTAssertNil(model.error)
         XCTAssertEqual(model.sections.flatMap(\.tasks).map(\.key), ["a"])
+    }
+
+    func testCallsAGardenEmptyOnlyAfterALoadThatWorked() async {
+        api.offline = true
+        let model = GardenModel(api: api, gardenId: "g1")
+        await model.load()
+        XCTAssertFalse(model.loaded)
+        api.offline = false
+        await model.load()
+        XCTAssertTrue(model.loaded)
+        api.offline = true
+        await model.load()
+        XCTAssertTrue(model.loaded, "the empty garden shown still came from a load that worked")
+    }
+
+    func testCallsTheHarvestListEmptyOnlyAfterALoadThatWorked() async {
+        api.offline = true
+        let model = HarvestModel(gardens: api, api: api, gardenId: "g1", now: may20)
+        await model.load()
+        XCTAssertFalse(model.loaded)
+        api.offline = false
+        await model.load()
+        XCTAssertTrue(model.loaded)
     }
 
     func testCountsTheDayInDenmarkWhereItIsAlreadyTomorrowLateInTheUTCEvening() {

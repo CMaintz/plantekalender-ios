@@ -35,7 +35,7 @@ struct HarvestView: View {
                 }
             }
             Section("Høst i år") {
-                if model.harvests.isEmpty { Text("Ingen høst registreret i år endnu.") }
+                if model.loaded && model.harvests.isEmpty { Text("Ingen høst registreret i år endnu.") }
                 ForEach(model.harvests) { harvest in
                     VStack(alignment: .leading) {
                         Text("\(plantName(harvest.plantId)) \(amountText(harvest.amount, unit: harvest.unit))")

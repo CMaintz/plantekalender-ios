@@ -12,7 +12,7 @@ struct GardenView: View {
     var body: some View {
         List {
             if let error = model.error { Text(error).foregroundStyle(.red) }
-            if !model.loading && model.groups.isEmpty { Text("Opret bede i webappen for at komme i gang.") }
+            if model.loaded && model.groups.isEmpty { Text("Opret bede i webappen for at komme i gang.") }
             ForEach(model.groups) { group in
                 Section(group.area?.name ?? "Uden bed") {
                     ForEach(group.items) { item in

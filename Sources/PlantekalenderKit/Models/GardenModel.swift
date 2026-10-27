@@ -22,6 +22,8 @@ public final class GardenModel {
     public private(set) var groups: [AreaGroup] = []
     public private(set) var plants: [PlantSummary] = []
     public private(set) var error: String?
+    /// A load has worked, so empty lists mean there is nothing rather than that loading failed.
+    public private(set) var loaded = false
 
     private var tickets = LoadTicket()
     private let api: GardenAPI
@@ -40,6 +42,7 @@ public final class GardenModel {
             guard tickets.isCurrent(ticket) else { return }
             self.groups = groups
             self.plants = plants
+            loaded = true
         }
         guard tickets.isCurrent(ticket), result != .cancelled else { return }
         error = result.failure
