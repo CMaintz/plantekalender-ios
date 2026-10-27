@@ -24,7 +24,7 @@ public final class GardenModel {
     /// A load has worked, so empty lists mean there is nothing rather than that loading failed.
     public private(set) var loaded = false
 
-    private var tickets = LoadTicket()
+    private let tickets = LoadTicket()
     private let api: GardenAPI
     private let gardenId: String
 
@@ -34,14 +34,13 @@ public final class GardenModel {
     }
 
     public func load() async {
-        let ticket = tickets.next()
-        let result = await outcome {
-            let groups = groupByArea(try await api.areas(gardenId: gardenId), try await api.items(gardenId: gardenId))
-            guard tickets.isCurrent(ticket) else { return }
+        let result = await tickets.run {
+            groupByArea(try await api.areas(gardenId: gardenId), try await api.items(gardenId: gardenId))
+        } apply: { groups in
             self.groups = groups
             loaded = true
         }
-        guard tickets.isCurrent(ticket), result != .cancelled else { return }
+        guard let result else { return }
         error = result.failure
         loading = false
     }

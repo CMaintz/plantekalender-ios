@@ -17,7 +17,7 @@ public final class HarvestModel {
     /// A load has worked, so empty lists mean there is nothing rather than that loading failed.
     public private(set) var loaded = false
 
-    private var tickets = LoadTicket()
+    private let tickets = LoadTicket()
     private let gardens: GardenAPI
     private let api: HarvestAPI
     private let gardenId: String
@@ -36,22 +36,25 @@ public final class HarvestModel {
     }
 
     public func load() async {
-        let ticket = tickets.next()
-        let result = await outcome {
-            let choices = try await gardens.items(gardenId: gardenId).filter {
-                $0.status != "planned" || $0.id == preselect
-            }
-            let harvests = try await api.harvests(gardenId: gardenId, year: year)
-            guard tickets.isCurrent(ticket) else { return }
-            let kept = itemId.flatMap { id in choices.first { $0.id == id }?.id }
-            self.choices = choices
-            self.harvests = harvests
-            itemId = kept ?? choices.first { $0.id == preselect }?.id ?? choices.first?.id
-            loaded = true
-        }
-        guard tickets.isCurrent(ticket), result != .cancelled else { return }
+        let result = await tickets.run(fetch, apply: show)
+        guard let result else { return }
         error = result.failure
         loading = false
+    }
+
+    private func fetch() async throws -> (choices: [Item], harvests: [Harvest]) {
+        let choices = try await gardens.items(gardenId: gardenId).filter {
+            $0.status != "planned" || $0.id == preselect
+        }
+        return (choices, try await api.harvests(gardenId: gardenId, year: year))
+    }
+
+    private func show(_ answer: (choices: [Item], harvests: [Harvest])) {
+        let kept = itemId.flatMap { id in answer.choices.first { $0.id == id }?.id }
+        choices = answer.choices
+        harvests = answer.harvests
+        itemId = kept ?? choices.first { $0.id == preselect }?.id ?? choices.first?.id
+        loaded = true
     }
 
     public func submit() async {
