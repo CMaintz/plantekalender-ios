@@ -35,7 +35,7 @@ public final class HarvestModel {
 
     public func load() async {
         let ticket = tickets.next()
-        let failed = await failure {
+        let result = await outcome {
             let choices = try await gardens.items(gardenId: gardenId).filter {
                 $0.status != "planned" || $0.id == preselect
             }
@@ -46,8 +46,8 @@ public final class HarvestModel {
             self.harvests = harvests
             itemId = kept ?? choices.first { $0.id == preselect }?.id ?? choices.first?.id
         }
-        guard tickets.isCurrent(ticket) else { return }
-        error = failed
+        guard tickets.isCurrent(ticket), result != .cancelled else { return }
+        error = result.failure
         loading = false
     }
 

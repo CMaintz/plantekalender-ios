@@ -34,15 +34,15 @@ public final class GardenModel {
 
     public func load() async {
         let ticket = tickets.next()
-        let failed = await failure {
+        let result = await outcome {
             let groups = groupByArea(try await api.areas(gardenId: gardenId), try await api.items(gardenId: gardenId))
             let plants = plants.isEmpty ? try await api.plants() : plants
             guard tickets.isCurrent(ticket) else { return }
             self.groups = groups
             self.plants = plants
         }
-        guard tickets.isCurrent(ticket) else { return }
-        error = failed
+        guard tickets.isCurrent(ticket), result != .cancelled else { return }
+        error = result.failure
         loading = false
     }
 

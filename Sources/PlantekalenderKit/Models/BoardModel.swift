@@ -40,7 +40,7 @@ public final class BoardModel {
 
     public func load() async {
         let ticket = tickets.next()
-        let failed = await failure {
+        let result = await outcome {
             let board = try await api.board(gardenId: gardenId)
             // Frost alerts need the weather service; the board is still worth showing without them.
             let alerts = (try? await api.alerts(gardenId: gardenId)) ?? []
@@ -49,8 +49,8 @@ public final class BoardModel {
             sections = PlantekalenderKit.sections(board)
             finished = board.filter { finishedBuckets.contains($0.bucket) }
         }
-        guard tickets.isCurrent(ticket) else { return }
-        error = failed
+        guard tickets.isCurrent(ticket), result != .cancelled else { return }
+        error = result.failure
         loading = false
     }
 

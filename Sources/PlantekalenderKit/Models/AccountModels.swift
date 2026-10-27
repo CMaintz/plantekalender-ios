@@ -56,10 +56,15 @@ public final class HomeModel {
 
     public func load() async {
         loading = true
-        error = await failure {
-            garden = try await api.gardens().first
-            plantNames = Dictionary(try await api.plants().map { ($0.id, $0.name) }) { first, _ in first }
+        let result = await outcome {
+            let garden = try await api.gardens().first
+            let names = Dictionary(try await api.plants().map { ($0.id, $0.name) }) { first, _ in first }
+            self.garden = garden
+            plantNames = names
         }
+        // Still loading: with no answer, a missing garden would offer to create a first one.
+        if result == .cancelled { return }
+        error = result.failure
         failed = error != nil
         loading = false
     }

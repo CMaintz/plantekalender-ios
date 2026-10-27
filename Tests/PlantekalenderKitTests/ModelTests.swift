@@ -9,6 +9,8 @@ final class FakeAPI: PlantekalenderAPI, @unchecked Sendable {
     var harvestList: [Harvest] = []
     var loginError: APIError?
     var offline = false
+    /// Answers reads the way URLSession does when the task that made them is cancelled.
+    var cancelling = false
     /// When set, the next board call waits for it, to test reloads that finish out of order.
     var boardGate: CheckedContinuation<[BoardTask], Never>?
     var holdNextBoard = false
@@ -31,6 +33,7 @@ final class FakeAPI: PlantekalenderAPI, @unchecked Sendable {
 
     func gardens() async throws -> [Garden] {
         if offline { throw URLError(.notConnectedToInternet) }
+        if cancelling { throw URLError(.cancelled) }
         return [Garden(id: "g1", name: "Have")]
     }
     func createGarden(name: String) async throws -> Garden { Garden(id: "g2", name: name) }
@@ -44,6 +47,7 @@ final class FakeAPI: PlantekalenderAPI, @unchecked Sendable {
 
     func plants() async throws -> [PlantSummary] { [] }
     func board(gardenId: String) async throws -> [BoardTask] {
+        if cancelling { throw URLError(.cancelled) }
         guard holdNextBoard else { return board }
         holdNextBoard = false
         return await withCheckedContinuation { boardGate = $0 }
@@ -211,6 +215,24 @@ final class ModelTests: XCTestCase {
         api.boardGate?.resume(returning: [task("old", "now")])
         await slow.value
         XCTAssertEqual(model.sections.flatMap(\.tasks).map(\.key), ["new"])
+    }
+
+    func testKeepsWaitingRatherThanOfferingANewGardenWhenTheFirstLoadIsCancelled() async {
+        api.cancelling = true
+        let home = HomeModel(auth: api, api: api, session: MemorySession())
+        await home.load()
+        XCTAssertTrue(home.loading)
+        XCTAssertNil(home.error)
+    }
+
+    func testKeepsTheBoardAndShowsNoErrorWhenAReloadIsCancelled() async {
+        api.board = [task("a", "now")]
+        let model = BoardModel(api: api, gardenId: "g1", now: may20)
+        await model.load()
+        api.cancelling = true
+        await model.load()
+        XCTAssertNil(model.error)
+        XCTAssertEqual(model.sections.flatMap(\.tasks).map(\.key), ["a"])
     }
 
     func testCountsTheDayInDenmarkWhereItIsAlreadyTomorrowLateInTheUTCEvening() {
