@@ -10,9 +10,9 @@ public, så CI kan bygge på macOS uden at bruge betalte minutter.
 
 ## Beslutning
 
-- **Tynd klient** med samme omfang som Android-appens første version: log ind eller opret konto,
-  opgavetavlen med udført/udsæt/ikke relevant/fortryd og frostvarsler, havens bede med plantning
-  via plantevælger, og høstregistrering. Resten bliver i webappen indtil videre.
+- **Tynd klient** med et lille omfang: log ind eller opret konto, opgavetavlen med
+  udført/udsæt/ikke relevant/fortryd og frostvarsler, havens bede med plantning via
+  plantevælger, og høstregistrering. Resten bliver i webappen indtil videre.
 - **`PlantekalenderKit`** er en Swift-pakke uden UIKit og SwiftUI: modeller, API-klient og view
   models (`@Observable`). Den bygger og testes med `swift test` på enhver platform med Swift 6.
   HTTP går gennem et `HTTPClient`-protokol, så klienten testes uden server.
@@ -22,7 +22,8 @@ public, så CI kan bygge på macOS uden at bruge betalte minutter.
 - **Fremadkompatibel parsing.** Ukendte felter ignoreres, og enum-lignende værdier er strenge.
 - **Token i Keychain** med `WhenUnlockedThisDeviceOnly`, så det ikke kommer med i en backup. Et
   401 uden for `/api/auth` logger ud.
-- **Debug** taler med web-repoets dev-server på `localhost`, **Release** med den deployede Worker.
+- **Debug** taler med en lokal udviklingsserver (`API_BASE_URL` i `project.yml`), **Release** med
+  den deployede app.
 
 ## Konsekvenser
 

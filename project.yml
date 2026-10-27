@@ -25,8 +25,8 @@ targets:
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
       configs:
-        # Debug talks to the web repo's dev server on the Mac running the simulator; Release to
-        # the deployed Worker.
+        # Debug talks to a local development server on the Mac running the simulator; Release to
+        # the deployed app.
         Debug:
           API_BASE_URL: "http://localhost:5173"
         Release:
