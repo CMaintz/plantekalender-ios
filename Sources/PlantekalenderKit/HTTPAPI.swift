@@ -74,50 +74,58 @@ extension HTTPAPI {
         try await send("POST", "/api/gardens", NewGarden(name: name))
     }
 
-    public func areas(gardenId: String) async throws -> [Area] { try await get("/api/gardens/\(gardenId)/areas") }
+    public func areas(gardenId: String) async throws -> [Area] { try await get(gardenPath(gardenId, "areas")) }
 
-    public func items(gardenId: String) async throws -> [Item] { try await get("/api/gardens/\(gardenId)/items") }
+    public func items(gardenId: String) async throws -> [Item] { try await get(gardenPath(gardenId, "items")) }
 
     public func addItem(gardenId: String, item: NewItem) async throws -> Item {
-        try await send("POST", "/api/gardens/\(gardenId)/items", item)
+        try await send("POST", gardenPath(gardenId, "items"), item)
     }
 
     public func plants() async throws -> [PlantSummary] { try await get("/api/catalog/plants") }
 }
 
 extension HTTPAPI {
-    public func board(gardenId: String) async throws -> [BoardTask] { try await get("/api/gardens/\(gardenId)/board") }
+    public func board(gardenId: String) async throws -> [BoardTask] { try await get(gardenPath(gardenId, "board")) }
 
     public func setTaskState(gardenId: String, key: String, status: String, snoozedUntil: String?) async throws {
-        try await call("PUT", statePath(gardenId, key), TaskStateInput(status: status, snoozedUntil: snoozedUntil))
+        try await call(
+            "PUT", gardenPath(gardenId, "tasks", key, "state"),
+            TaskStateInput(status: status, snoozedUntil: snoozedUntil))
     }
 
     public func reopenTask(gardenId: String, key: String) async throws {
-        try await call("DELETE", statePath(gardenId, key))
+        try await call("DELETE", gardenPath(gardenId, "tasks", key, "state"))
     }
 
     public func alerts(gardenId: String) async throws -> [FrostAlert] {
-        try await get("/api/gardens/\(gardenId)/alerts")
+        try await get(gardenPath(gardenId, "alerts"))
     }
 
     public func harvests(gardenId: String, year: Int) async throws -> [Harvest] {
-        try await get("/api/gardens/\(gardenId)/harvests?year=\(year)")
+        try await get(gardenPath(gardenId, "harvests") + "?year=\(year)")
     }
 
     public func addHarvest(gardenId: String, harvest: NewHarvest) async throws -> Harvest {
-        try await send("POST", "/api/gardens/\(gardenId)/harvests", harvest)
+        try await send("POST", gardenPath(gardenId, "harvests"), harvest)
     }
 
     public func deleteHarvest(gardenId: String, harvestId: String) async throws {
-        try await call("DELETE", "/api/gardens/\(gardenId)/harvests/\(harvestId)")
+        try await call("DELETE", gardenPath(gardenId, "harvests", harvestId))
+    }
+}
+
+extension HTTPAPI {
+    /// `/api/gardens/<id>/<parts>`, each part percent-encoded on its own: a task key holds colons,
+    /// and an id must never be able to add a segment or a query of its own.
+    private func gardenPath(_ gardenId: String, _ parts: String...) -> String {
+        "/api/gardens/" + ([gardenId] + parts).map(segment).joined(separator: "/")
     }
 
-    // A task key holds colons, which a path would otherwise carry unencoded.
-    private func statePath(_ gardenId: String, _ key: String) -> String {
+    private func segment(_ value: String) -> String {
         var allowed = CharacterSet.alphanumerics
         allowed.insert(charactersIn: "-._~")
-        let encoded = key.addingPercentEncoding(withAllowedCharacters: allowed) ?? key
-        return "/api/gardens/\(gardenId)/tasks/\(encoded)/state"
+        return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
     }
 }
 
