@@ -17,10 +17,10 @@ func groupByArea(_ areas: [Area], _ items: [Item]) -> [AreaGroup] {
 
 @MainActor
 @Observable
-public final class GardenModel {
+public final class GardenModel: Reloading {
     public private(set) var loading = true
     public private(set) var groups: [AreaGroup] = []
-    public private(set) var error: String?
+    public internal(set) var error: String?
     /// A load has worked, so empty lists mean there is nothing rather than that loading failed.
     public private(set) var loaded = false
 
@@ -46,10 +46,9 @@ public final class GardenModel {
     }
 
     public func plant(_ plantId: String, in areaId: String?) async {
-        error = await failure {
+        await writeThenReload {
             _ = try await api.addItem(
                 gardenId: gardenId, item: NewItem(plantId: plantId, status: "active", areaId: areaId))
         }
-        if error == nil { await load() }
     }
 }

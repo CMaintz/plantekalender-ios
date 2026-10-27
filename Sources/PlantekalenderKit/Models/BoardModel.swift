@@ -20,12 +20,12 @@ func sections(_ board: [BoardTask]) -> [BoardSection] {
 
 @MainActor
 @Observable
-public final class BoardModel {
+public final class BoardModel: Reloading {
     public private(set) var loading = true
     public private(set) var sections: [BoardSection] = []
     public private(set) var finished: [BoardTask] = []
     public private(set) var alerts: [FrostAlert] = []
-    public private(set) var error: String?
+    public internal(set) var error: String?
 
     private let tickets = LoadTicket()
     private let api: BoardAPI
@@ -65,14 +65,12 @@ public final class BoardModel {
     public func dismiss(_ task: BoardTask) async { await write(task, status: "dismissed") }
 
     public func reopen(_ task: BoardTask) async {
-        error = await failure { try await api.reopenTask(gardenId: gardenId, key: task.key) }
-        if error == nil { await load() }
+        await writeThenReload { try await api.reopenTask(gardenId: gardenId, key: task.key) }
     }
 
     private func write(_ task: BoardTask, status: String, until: String? = nil) async {
-        error = await failure {
+        await writeThenReload {
             try await api.setTaskState(gardenId: gardenId, key: task.key, status: status, snoozedUntil: until)
         }
-        if error == nil { await load() }
     }
 }

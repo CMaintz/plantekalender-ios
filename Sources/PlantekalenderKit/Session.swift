@@ -60,6 +60,21 @@ func sessionExpired(status: Int, path: String, sentToken: String?, currentToken:
     status == 401 && !path.hasPrefix("/api/auth/") && sentToken == currentToken
 }
 
+/// A screen that reloads from the server after each change it makes.
+@MainActor
+protocol Reloading: AnyObject {
+    var error: String? { get set }
+    func load() async
+}
+
+extension Reloading {
+    /// Runs `write` and, once it worked, reloads so the screen shows the server's view of the change.
+    func writeThenReload(_ write: () async throws -> Void) async {
+        error = await failure(of: write)
+        if error == nil { await load() }
+    }
+}
+
 /// Numbers a screen's loads, so a load that finishes after a newer one has started drops its
 /// answer instead of overwriting newer state. A class, as `run` changes it across an await.
 @MainActor

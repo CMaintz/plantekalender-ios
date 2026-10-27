@@ -5,7 +5,7 @@ import Observation
 /// its planting in, which is chosen even when it is still marked as planned.
 @MainActor
 @Observable
-public final class HarvestModel {
+public final class HarvestModel: Reloading {
     public private(set) var loading = true
     public private(set) var choices: [Item] = []
     public var itemId: String?
@@ -13,7 +13,7 @@ public final class HarvestModel {
     public var unit = "kg"
     public private(set) var harvests: [Harvest] = []
     public private(set) var busy = false
-    public private(set) var error: String?
+    public internal(set) var error: String?
     /// A load has worked, so empty lists mean there is nothing rather than that loading failed.
     public private(set) var loaded = false
 
@@ -65,16 +65,14 @@ public final class HarvestModel {
         busy = true
         defer { busy = false }
         let harvest = NewHarvest(itemId: itemId, harvestedOn: isoDay(now()), amount: value, unit: unit)
-        error = await failure {
+        await writeThenReload {
             _ = try await api.addHarvest(gardenId: gardenId, harvest: harvest)
             amount = ""
         }
-        if error == nil { await load() }
     }
 
     public func delete(_ harvest: Harvest) async {
-        error = await failure { try await api.deleteHarvest(gardenId: gardenId, harvestId: harvest.id) }
-        if error == nil { await load() }
+        await writeThenReload { try await api.deleteHarvest(gardenId: gardenId, harvestId: harvest.id) }
     }
 
     private var year: Int { Int(isoDay(now()).prefix(4)) ?? 0 }
