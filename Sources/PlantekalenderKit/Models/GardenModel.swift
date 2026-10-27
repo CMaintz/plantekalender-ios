@@ -17,15 +17,14 @@ func groupByArea(_ areas: [Area], _ items: [Item]) -> [AreaGroup] {
 
 @MainActor
 @Observable
-public final class GardenModel {
+public final class GardenModel: Reloading {
     public private(set) var loading = true
     public private(set) var groups: [AreaGroup] = []
-    public private(set) var plants: [PlantSummary] = []
-    public private(set) var error: String?
+    public internal(set) var error: String?
     /// A load has worked, so empty lists mean there is nothing rather than that loading failed.
     public private(set) var loaded = false
 
-    private var tickets = LoadTicket()
+    private let tickets = LoadTicket()
     private let api: GardenAPI
     private let gardenId: String
 
@@ -35,25 +34,21 @@ public final class GardenModel {
     }
 
     public func load() async {
-        let ticket = tickets.next()
-        let result = await outcome {
-            let groups = groupByArea(try await api.areas(gardenId: gardenId), try await api.items(gardenId: gardenId))
-            let plants = plants.isEmpty ? try await api.plants() : plants
-            guard tickets.isCurrent(ticket) else { return }
+        let result = await tickets.run {
+            groupByArea(try await api.areas(gardenId: gardenId), try await api.items(gardenId: gardenId))
+        } apply: { groups in
             self.groups = groups
-            self.plants = plants
             loaded = true
         }
-        guard tickets.isCurrent(ticket), result != .cancelled else { return }
+        guard let result else { return }
         error = result.failure
         loading = false
     }
 
     public func plant(_ plantId: String, in areaId: String?) async {
-        error = await failure {
+        await writeThenReload {
             _ = try await api.addItem(
                 gardenId: gardenId, item: NewItem(plantId: plantId, status: "active", areaId: areaId))
         }
-        if error == nil { await load() }
     }
 }

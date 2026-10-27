@@ -60,16 +60,36 @@ func sessionExpired(status: Int, path: String, sentToken: String?, currentToken:
     status == 401 && !path.hasPrefix("/api/auth/") && sentToken == currentToken
 }
 
-/// Hands out a number per load, so a load that finishes after a newer one has started can tell
-/// its answer is stale and drop it instead of overwriting newer state.
+/// A screen that reloads from the server after each change it makes.
 @MainActor
-struct LoadTicket {
+protocol Reloading: AnyObject {
+    var error: String? { get set }
+    func load() async
+}
+
+extension Reloading {
+    /// Runs `write` and, once it worked, reloads so the screen shows the server's view of the change.
+    func writeThenReload(_ write: () async throws -> Void) async {
+        error = await failure(of: write)
+        if error == nil { await load() }
+    }
+}
+
+/// Numbers a screen's loads, so a load that finishes after a newer one has started drops its
+/// answer instead of overwriting newer state. A class, as `run` changes it across an await.
+@MainActor
+final class LoadTicket {
     private var latest = 0
 
-    mutating func next() -> Int {
+    /// Fetches and hands the answer to `apply`, unless a newer load started meanwhile. Returns how
+    /// the load ended, or nil when it was cancelled or overtaken: the caller then leaves its state alone.
+    func run<T>(_ fetch: @MainActor () async throws -> T, apply: (T) -> Void) async -> Outcome? {
         latest += 1
-        return latest
+        let ticket = latest
+        let result = await outcome {
+            let answer = try await fetch()
+            if ticket == latest { apply(answer) }
+        }
+        return ticket == latest && result != .cancelled ? result : nil
     }
-
-    func isCurrent(_ ticket: Int) -> Bool { ticket == latest }
 }

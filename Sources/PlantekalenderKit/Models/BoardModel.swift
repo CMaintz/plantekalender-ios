@@ -20,14 +20,14 @@ func sections(_ board: [BoardTask]) -> [BoardSection] {
 
 @MainActor
 @Observable
-public final class BoardModel {
+public final class BoardModel: Reloading {
     public private(set) var loading = true
     public private(set) var sections: [BoardSection] = []
     public private(set) var finished: [BoardTask] = []
     public private(set) var alerts: [FrostAlert] = []
-    public private(set) var error: String?
+    public internal(set) var error: String?
 
-    private var tickets = LoadTicket()
+    private let tickets = LoadTicket()
     private let api: BoardAPI
     private let gardenId: String
     private let now: @Sendable () -> Date
@@ -39,19 +39,21 @@ public final class BoardModel {
     }
 
     public func load() async {
-        let ticket = tickets.next()
-        let result = await outcome {
-            let board = try await api.board(gardenId: gardenId)
-            // Frost alerts need the weather service; the board is still worth showing without them.
-            let alerts = (try? await api.alerts(gardenId: gardenId)) ?? []
-            guard tickets.isCurrent(ticket) else { return }
-            self.alerts = alerts
-            sections = PlantekalenderKit.sections(board)
-            finished = board.filter { finishedBuckets.contains($0.bucket) }
+        let result = await tickets.run(fetch) { answer in
+            alerts = answer.alerts
+            sections = PlantekalenderKit.sections(answer.board)
+            finished = answer.board.filter { finishedBuckets.contains($0.bucket) }
         }
-        guard tickets.isCurrent(ticket), result != .cancelled else { return }
+        guard let result else { return }
         error = result.failure
         loading = false
+    }
+
+    private func fetch() async throws -> (board: [BoardTask], alerts: [FrostAlert]) {
+        let board = try await api.board(gardenId: gardenId)
+        // Frost alerts need the weather service; the board is still worth showing without them.
+        let alerts = (try? await api.alerts(gardenId: gardenId)) ?? []
+        return (board, alerts)
     }
 
     public func done(_ task: BoardTask) async { await write(task, status: "done") }
@@ -63,14 +65,12 @@ public final class BoardModel {
     public func dismiss(_ task: BoardTask) async { await write(task, status: "dismissed") }
 
     public func reopen(_ task: BoardTask) async {
-        error = await failure { try await api.reopenTask(gardenId: gardenId, key: task.key) }
-        if error == nil { await load() }
+        await writeThenReload { try await api.reopenTask(gardenId: gardenId, key: task.key) }
     }
 
     private func write(_ task: BoardTask, status: String, until: String? = nil) async {
-        error = await failure {
+        await writeThenReload {
             try await api.setTaskState(gardenId: gardenId, key: task.key, status: status, snoozedUntil: until)
         }
-        if error == nil { await load() }
     }
 }
