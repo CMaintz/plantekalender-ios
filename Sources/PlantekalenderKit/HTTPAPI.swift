@@ -121,12 +121,23 @@ extension HTTPAPI {
     }
 }
 
-/// URLSession as the app's HTTP client.
+/// URLSession as the app's HTTP client. Authentication is the bearer token alone: the server's
+/// session cookie holds the same secret and would otherwise land in the shared cookie jar on disk,
+/// and cached responses would keep the user's garden after sign-out.
 public struct URLSessionClient: HTTPClient {
-    public init() {}
+    let session: URLSession
+
+    public init() {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpCookieStorage = nil
+        configuration.httpShouldSetCookies = false
+        configuration.httpCookieAcceptPolicy = .never
+        configuration.urlCache = nil
+        session = URLSession(configuration: configuration)
+    }
 
     public func send(_ request: URLRequest) async throws -> (Data, Int) {
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
         return (data, (response as? HTTPURLResponse)?.statusCode ?? 0)
     }
 }

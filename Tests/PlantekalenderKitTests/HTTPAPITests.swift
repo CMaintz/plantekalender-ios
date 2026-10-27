@@ -104,4 +104,13 @@ final class HTTPAPITests: XCTestCase {
         let harvests = try await api().harvests(gardenId: "g1", year: 2026)
         XCTAssertNil(harvests.first?.itemId)
     }
+
+    // The session cookie carries the same secret as the bearer token, and responses hold the user's garden.
+    func testKeepsNoCookiesOrCachedResponsesThatOutliveASignOut() {
+        let configuration = URLSessionClient().session.configuration
+        XCTAssertNil(configuration.httpCookieStorage)
+        XCTAssertFalse(configuration.httpShouldSetCookies)
+        XCTAssertEqual(configuration.httpCookieAcceptPolicy, .never)
+        XCTAssertNil(configuration.urlCache)
+    }
 }
