@@ -12,6 +12,10 @@ final class KeychainSession: SessionStore {
         didSet { box.write(token) }
     }
 
+    /// The Keychain could not be read, which is not the same as holding no token: a launch before
+    /// the device's first unlock gets errSecInteractionNotAllowed, and must not look signed out.
+    private(set) var unreadable = false
+
     /// The token for the HTTP client, which reads it off the main actor.
     @ObservationIgnored let box = TokenBox()
 
@@ -22,22 +26,22 @@ final class KeychainSession: SessionStore {
     ]
 
     init() {
+        read()
+    }
+
+    func read() {
         var lookup = query
         lookup[kSecReturnData as String] = true
         var result: AnyObject?
-        if SecItemCopyMatching(lookup as CFDictionary, &result) == errSecSuccess, let data = result as? Data {
-            token = String(decoding: data, as: UTF8.self)
-            // didSet does not run during init, so the box is filled by hand here.
-            box.write(token)
-        }
+        let status = SecItemCopyMatching(lookup as CFDictionary, &result)
+        unreadable = status != errSecSuccess && status != errSecItemNotFound
+        token = (result as? Data).map { String(decoding: $0, as: UTF8.self) }
+        // Written directly as well: this runs from init, where didSet cannot be relied on.
+        box.write(token)
     }
 
-    func signIn(token: String) {
-        SecItemDelete(query as CFDictionary)
-        var item = query
-        item[kSecValueData as String] = Data(token.utf8)
-        item[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        SecItemAdd(item as CFDictionary, nil)
+    func signIn(token: String) throws {
+        try save(Data(token.utf8))
         self.token = token
     }
 
@@ -45,27 +49,21 @@ final class KeychainSession: SessionStore {
         SecItemDelete(query as CFDictionary)
         token = nil
     }
-}
 
-final class TokenBox: @unchecked Sendable {
-    private let lock = NSLock()
-    private var value: String?
-
-    func write(_ token: String?) { lock.withLock { value = token } }
-    @Sendable func read() -> String? { lock.withLock { value } }
-}
-
-/// Signs out when the server says the current session is gone; see `sessionExpired`.
-struct SessionAwareClient: HTTPClient {
-    let inner: HTTPClient
-    let currentToken: @Sendable () -> String?
-    let onExpired: @Sendable () -> Void
-
-    func send(_ request: URLRequest) async throws -> (Data, Int) {
-        let (data, status) = try await inner.send(request)
-        let sent = request.value(forHTTPHeaderField: "Authorization")?.replacingOccurrences(of: "Bearer ", with: "")
-        let path = request.url?.path ?? ""
-        if sessionExpired(status: status, path: path, sentToken: sent, currentToken: currentToken()) { onExpired() }
-        return (data, status)
+    /// Updates the stored token in place, or adds it when there is none, so a failed save never
+    /// leaves the user with no token at all.
+    private func save(_ data: Data) throws {
+        var status = SecItemUpdate(query as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        if status == errSecItemNotFound {
+            var item = query
+            item[kSecValueData as String] = data
+            item[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+            status = SecItemAdd(item as CFDictionary, nil)
+        }
+        guard status == errSecSuccess else { throw KeychainError(status: status) }
     }
+}
+
+struct KeychainError: Error {
+    let status: OSStatus
 }

@@ -15,7 +15,8 @@ red. `mise run app:build` genererer Xcode-projektet og bygger appen (kræver mac
 - `Sources/PlantekalenderKit/` modeller, API-protokoller og `HTTPAPI`, view models i `Models/`.
   Ingen UIKit/SwiftUI her, så pakken kan testes uden for Xcode.
 - `Tests/PlantekalenderKitTests/` XCTest mod en optagende HTTP-klient og en falsk API.
-- `App/` SwiftUI-appen, Keychain-sessionen og visninger i `Views/`. `project.yml` er XcodeGen-spec.
+- `App/` SwiftUI-appen, Keychain-sessionen og visninger i `Views/`. `project.yml` er XcodeGen-spec,
+  `Support/` har en Info.plist pr. build-konfiguration.
 
 ## Conventions
 

@@ -25,16 +25,12 @@ targets:
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
       configs:
-        # Debug talks to the web repo's dev server on the Mac running the simulator; Release to
-        # the deployed Worker.
+        # Debug talks to a local development server on the Mac running the simulator; Release to
+        # the deployed app. Each has its own Info.plist, because XcodeGen's `info:` writes one plist
+        # for all configs and only Debug may talk plain HTTP to that server (NSAllowsLocalNetworking).
         Debug:
           API_BASE_URL: "http://localhost:5173"
+          INFOPLIST_FILE: Support/Info-Debug.plist
         Release:
           API_BASE_URL: "https://plantekalender.cmaintz-site.workers.dev"
-    info:
-      path: App/Info.plist
-      properties:
-        APIBaseURL: $(API_BASE_URL)
-        NSAppTransportSecurity:
-          # Plain HTTP only to localhost, for the Debug build's dev server.
-          NSAllowsLocalNetworking: true
+          INFOPLIST_FILE: Support/Info.plist

@@ -14,6 +14,8 @@ public final class HarvestModel {
     public private(set) var harvests: [Harvest] = []
     public private(set) var busy = false
     public private(set) var error: String?
+    /// A load has worked, so empty lists mean there is nothing rather than that loading failed.
+    public private(set) var loaded = false
 
     private var tickets = LoadTicket()
     private let gardens: GardenAPI
@@ -35,7 +37,7 @@ public final class HarvestModel {
 
     public func load() async {
         let ticket = tickets.next()
-        let failed = await failure {
+        let result = await outcome {
             let choices = try await gardens.items(gardenId: gardenId).filter {
                 $0.status != "planned" || $0.id == preselect
             }
@@ -45,9 +47,10 @@ public final class HarvestModel {
             self.choices = choices
             self.harvests = harvests
             itemId = kept ?? choices.first { $0.id == preselect }?.id ?? choices.first?.id
+            loaded = true
         }
-        guard tickets.isCurrent(ticket) else { return }
-        error = failed
+        guard tickets.isCurrent(ticket), result != .cancelled else { return }
+        error = result.failure
         loading = false
     }
 

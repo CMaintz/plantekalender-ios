@@ -86,6 +86,13 @@ final class HTTPAPITests: XCTestCase {
         )
     }
 
+    func testPercentEncodesIdsSoTheyCannotReachAnotherPath() async throws {
+        try await api().deleteHarvest(gardenId: "g/1", harvestId: "h?1")
+        XCTAssertEqual(
+            client.requests[0].url?.absoluteString, "https://example.test/api/gardens/g%2F1/harvests/h%3F1"
+        )
+    }
+
     func testLeavesOutAnEmptySnoozeDateInsteadOfSendingNull() async throws {
         try await api().setTaskState(gardenId: "g1", key: "k", status: "done", snoozedUntil: nil)
         XCTAssertEqual(body(), #"{"status":"done"}"#)
@@ -103,5 +110,14 @@ final class HTTPAPITests: XCTestCase {
         ]
         let harvests = try await api().harvests(gardenId: "g1", year: 2026)
         XCTAssertNil(harvests.first?.itemId)
+    }
+
+    // The session cookie carries the same secret as the bearer token, and responses hold the user's garden.
+    func testKeepsNoCookiesOrCachedResponsesThatOutliveASignOut() {
+        let configuration = URLSessionClient().session.configuration
+        XCTAssertNil(configuration.httpCookieStorage)
+        XCTAssertFalse(configuration.httpShouldSetCookies)
+        XCTAssertEqual(configuration.httpCookieAcceptPolicy, .never)
+        XCTAssertNil(configuration.urlCache)
     }
 }
