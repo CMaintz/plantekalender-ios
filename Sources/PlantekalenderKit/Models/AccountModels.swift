@@ -33,13 +33,14 @@ public final class LoginModel {
     }
 }
 
-/// The signed-in shell: which garden the tabs show, plant names for every screen, and logout.
+/// The signed-in shell: which garden the tabs show, the plant catalog for every screen, and logout.
 @MainActor
 @Observable
 public final class HomeModel {
     public private(set) var loading = true
     public private(set) var garden: Garden?
-    public private(set) var plantNames: [String: String] = [:]
+    public private(set) var plants: [PlantSummary] = []
+    private var plantNames: [String: String] = [:]
     public private(set) var error: String?
     /// The first load failed, which is not the same as having no garden.
     public private(set) var failed = false
@@ -58,9 +59,10 @@ public final class HomeModel {
         loading = true
         let result = await outcome {
             let garden = try await api.gardens().first
-            let names = Dictionary(try await api.plants().map { ($0.id, $0.name) }) { first, _ in first }
+            let plants = try await api.plants()
             self.garden = garden
-            plantNames = names
+            self.plants = plants
+            plantNames = Dictionary(plants.map { ($0.id, $0.name) }) { first, _ in first }
         }
         // Still loading: with no answer, a missing garden would offer to create a first one.
         if result == .cancelled { return }

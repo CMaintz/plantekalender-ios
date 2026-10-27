@@ -49,7 +49,7 @@ private struct Tabs: View {
                 }
             }
             .tabItem { Label("Oversigt", systemImage: "calendar") }.tag(Tab.board)
-            NavigationStack { GardenView(api: api, gardenId: gardenId) }
+            NavigationStack { GardenView(api: api, gardenId: gardenId, plants: home.plants, plantName: home.plantName) }
                 .tabItem { Label("Haven", systemImage: "leaf") }.tag(Tab.garden)
             NavigationStack {
                 HarvestView(api: api, gardenId: gardenId, preselect: harvestItem, plantName: home.plantName)

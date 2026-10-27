@@ -4,9 +4,13 @@ import SwiftUI
 struct GardenView: View {
     @State private var model: GardenModel
     @State private var addingTo: AreaGroup?
+    let plants: [PlantSummary]
+    let plantName: (String) -> String
 
-    init(api: GardenAPI, gardenId: String) {
+    init(api: GardenAPI, gardenId: String, plants: [PlantSummary], plantName: @escaping (String) -> String) {
         _model = State(initialValue: GardenModel(api: api, gardenId: gardenId))
+        self.plants = plants
+        self.plantName = plantName
     }
 
     var body: some View {
@@ -17,7 +21,7 @@ struct GardenView: View {
                 Section(group.area?.name ?? "Uden bed") {
                     ForEach(group.items) { item in
                         VStack(alignment: .leading) {
-                            Text(name(item.plantId) + (item.variety.map { " (\($0))" } ?? ""))
+                            Text(plantName(item.plantId) + (item.variety.map { " (\($0))" } ?? ""))
                             Text(itemDetail(item)).font(.caption).foregroundStyle(.secondary)
                         }
                     }
@@ -30,15 +34,11 @@ struct GardenView: View {
         .task { await model.load() }
         .refreshable { await model.load() }
         .sheet(item: $addingTo) { group in
-            PlantPicker(plants: model.plants) { plant in
+            PlantPicker(plants: plants) { plant in
                 addingTo = nil
                 Task { await model.plant(plant.id, in: group.area?.id) }
             }
         }
-    }
-
-    private func name(_ plantId: String) -> String {
-        model.plants.first { $0.id == plantId }?.name ?? plantId
     }
 }
 
