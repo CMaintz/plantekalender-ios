@@ -2,10 +2,10 @@ import PlantekalenderKit
 import SwiftUI
 
 struct SignedInView: View {
-    let api: HTTPAPI
+    let api: any PlantekalenderAPI
     @State private var home: HomeModel
 
-    init(api: HTTPAPI, session: SessionStore) {
+    init(api: any PlantekalenderAPI, session: SessionStore) {
         self.api = api
         _home = State(initialValue: HomeModel(auth: api, api: api, session: session))
     }
@@ -33,7 +33,7 @@ struct SignedInView: View {
 private enum Tab: Hashable { case board, garden, harvest, account }
 
 private struct Tabs: View {
-    let api: HTTPAPI
+    let api: any PlantekalenderAPI
     let gardenId: String
     let home: HomeModel
     @State private var tab = Tab.board
