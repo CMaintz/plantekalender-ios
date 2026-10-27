@@ -8,12 +8,12 @@ struct PlantekalenderApp: App {
 
     init() {
         let session = KeychainSession()
-        let base = Bundle.main.object(forInfoDictionaryKey: "APIBaseURL") as? String ?? ""
-        let client = SessionAwareClient(inner: URLSessionClient(), currentToken: session.box.read) {
+        let base = URL(string: Bundle.main.object(forInfoDictionaryKey: "APIBaseURL") as? String ?? "")!
+        let client = SessionAwareClient(inner: URLSessionClient(), baseURL: base, currentToken: session.box.read) {
             Task { @MainActor in session.signOut() }
         }
         _session = State(initialValue: session)
-        api = HTTPAPI(baseURL: URL(string: base)!, token: session.box.read, client: client)
+        api = HTTPAPI(baseURL: base, token: session.box.read, client: client)
     }
 
     var body: some Scene {

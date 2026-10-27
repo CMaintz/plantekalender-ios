@@ -54,7 +54,7 @@ func isCancellation(_ error: Error) -> Bool {
 /// Whether a response means the stored session is gone. A 401 on /api/auth is a wrong password,
 /// which the login screen explains itself; a 401 for a request sent with an older token says
 /// nothing about the session that replaced it.
-public func sessionExpired(status: Int, path: String, sentToken: String?, currentToken: String?) -> Bool {
+func sessionExpired(status: Int, path: String, sentToken: String?, currentToken: String?) -> Bool {
     status == 401 && !path.hasPrefix("/api/auth/") && sentToken == currentToken
 }
 

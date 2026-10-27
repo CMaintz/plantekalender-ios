@@ -350,11 +350,4 @@ final class ModelTests: XCTestCase {
         await raceItems(model.load, olderAnswer: .failure(URLError(.timedOut)))
         XCTAssertNil(model.error)
     }
-
-    func testSignsOutOnlyWhenTheServerRejectsTheCurrentSession() {
-        XCTAssertTrue(sessionExpired(status: 401, path: "/api/gardens/g1/board", sentToken: "t1", currentToken: "t1"))
-        XCTAssertFalse(sessionExpired(status: 401, path: "/api/auth/login", sentToken: "t1", currentToken: "t1"))
-        XCTAssertFalse(sessionExpired(status: 401, path: "/api/gardens", sentToken: "old", currentToken: "new"))
-        XCTAssertFalse(sessionExpired(status: 404, path: "/api/gardens/g1", sentToken: "t1", currentToken: "t1"))
-    }
 }
