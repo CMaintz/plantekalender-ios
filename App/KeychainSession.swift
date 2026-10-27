@@ -46,26 +46,3 @@ final class KeychainSession: SessionStore {
         token = nil
     }
 }
-
-final class TokenBox: @unchecked Sendable {
-    private let lock = NSLock()
-    private var value: String?
-
-    func write(_ token: String?) { lock.withLock { value = token } }
-    @Sendable func read() -> String? { lock.withLock { value } }
-}
-
-/// Signs out when the server says the current session is gone; see `sessionExpired`.
-struct SessionAwareClient: HTTPClient {
-    let inner: HTTPClient
-    let currentToken: @Sendable () -> String?
-    let onExpired: @Sendable () -> Void
-
-    func send(_ request: URLRequest) async throws -> (Data, Int) {
-        let (data, status) = try await inner.send(request)
-        let sent = request.value(forHTTPHeaderField: "Authorization")?.replacingOccurrences(of: "Bearer ", with: "")
-        let path = request.url?.path ?? ""
-        if sessionExpired(status: status, path: path, sentToken: sent, currentToken: currentToken()) { onExpired() }
-        return (data, status)
-    }
-}
