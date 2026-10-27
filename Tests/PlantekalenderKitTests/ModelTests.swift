@@ -14,6 +14,10 @@ final class FakeAPI: PlantekalenderAPI, @unchecked Sendable {
     /// When set, the next board call waits for it, to test reloads that finish out of order.
     var boardGate: CheckedContinuation<[BoardTask], Never>?
     var holdNextBoard = false
+    /// The same for the next items call, which can also be answered with an error.
+    var itemsGate: CheckedContinuation<[Item], Error>?
+    var holdNextItems = false
+    var alertsFail = false
     private(set) var writes: [String] = []
 
     func login(email: String, password: String) async throws -> AuthResponse {
@@ -44,7 +48,9 @@ final class FakeAPI: PlantekalenderAPI, @unchecked Sendable {
 
     func items(gardenId: String) async throws -> [Item] {
         if offline { throw URLError(.notConnectedToInternet) }
-        return items
+        guard holdNextItems else { return items }
+        holdNextItems = false
+        return try await withCheckedThrowingContinuation { itemsGate = $0 }
     }
 
     func addItem(gardenId: String, item: NewItem) async throws -> Item {
@@ -65,7 +71,10 @@ final class FakeAPI: PlantekalenderAPI, @unchecked Sendable {
     }
 
     func reopenTask(gardenId: String, key: String) async throws { writes.append("reopen \(key)") }
-    func alerts(gardenId: String) async throws -> [FrostAlert] { [] }
+    func alerts(gardenId: String) async throws -> [FrostAlert] {
+        if alertsFail { throw APIError(status: 503, code: "weather_unavailable") }
+        return []
+    }
 
     func harvests(gardenId: String, year: Int) async throws -> [Harvest] {
         if offline { throw URLError(.notConnectedToInternet) }
@@ -283,6 +292,63 @@ final class ModelTests: XCTestCase {
     func testAddsCalendarDaysAcrossTheEndOfSummerTime() {
         // 24 October 2026, 22:30 UTC is 00:30 on the 25th, the night summer time ends; that day has 25 hours.
         XCTAssertEqual(isoDay(Date(timeIntervalSince1970: 1_792_881_000), plusDays: 1), "2026-10-26")
+    }
+
+    func testShowsTheBoardWithoutAnErrorWhenFrostAlertsFail() async {
+        api.board = [task("a", "now")]
+        api.alertsFail = true
+        let model = BoardModel(api: api, gardenId: "g1", now: may20)
+        await model.load()
+        XCTAssertEqual(model.sections.flatMap(\.tasks).map(\.key), ["a"])
+        XCTAssertNil(model.error)
+    }
+
+    func testKeepsTheChosenPlantingAfterLoggingAHarvest() async {
+        api.items = [
+            Item(id: "i0", plantId: "gulerod", status: "active"), Item(id: "i1", plantId: "tomat", status: "active"),
+        ]
+        let model = HarvestModel(gardens: api, api: api, gardenId: "g1", now: may20)
+        await model.load()
+        model.itemId = "i1"
+        model.amount = "1"
+        await model.submit()
+        XCTAssertEqual(model.itemId, "i1")
+    }
+
+    /// Starts a load that waits for its items, runs a newer load to the end, then lets the older one answer.
+    func raceItems(_ load: @escaping @MainActor () async -> Void, olderAnswer: Result<[Item], Error>) async {
+        api.holdNextItems = true
+        let slow = Task { await load() }
+        while api.itemsGate == nil { await Task.yield() }
+        await load()
+        api.itemsGate?.resume(with: olderAnswer)
+        await slow.value
+    }
+
+    func testKeepsTheNewestPlantingsWhenAnOlderGardenReloadAnswersLast() async {
+        let model = GardenModel(api: api, gardenId: "g1")
+        api.items = [Item(id: "new", plantId: "tomat", status: "active")]
+        await raceItems(model.load, olderAnswer: .success([Item(id: "old", plantId: "tomat", status: "active")]))
+        XCTAssertEqual(model.groups.flatMap(\.items).map(\.id), ["new"])
+    }
+
+    func testIgnoresAnOlderGardenReloadThatFailsLast() async {
+        let model = GardenModel(api: api, gardenId: "g1")
+        await raceItems(model.load, olderAnswer: .failure(URLError(.timedOut)))
+        XCTAssertNil(model.error)
+    }
+
+    func testKeepsTheNewestHarvestChoicesWhenAnOlderReloadAnswersLast() async {
+        let model = HarvestModel(gardens: api, api: api, gardenId: "g1", now: may20)
+        api.items = [Item(id: "new", plantId: "tomat", status: "active")]
+        await raceItems(model.load, olderAnswer: .success([Item(id: "old", plantId: "tomat", status: "active")]))
+        XCTAssertEqual(model.choices.map(\.id), ["new"])
+    }
+
+    func testIgnoresAnOlderHarvestReloadThatFailsLast() async {
+        let model = HarvestModel(gardens: api, api: api, gardenId: "g1", now: may20)
+        await raceItems(model.load, olderAnswer: .failure(URLError(.timedOut)))
+        XCTAssertNil(model.error)
     }
 
     func testSignsOutOnlyWhenTheServerRejectsTheCurrentSession() {
