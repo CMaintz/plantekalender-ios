@@ -28,7 +28,7 @@ public final class LoginModel {
                 ? try await api.register(email: email, password: password)
                 : try await api.login(email: email, password: password)
             guard let token = auth.token else { throw APIError(status: 0, code: "no_token") }
-            session.signIn(token: token)
+            try session.signIn(token: token)
         }
     }
 }

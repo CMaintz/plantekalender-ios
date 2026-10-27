@@ -1,9 +1,11 @@
 import Foundation
 
 /// Where the signed-in user's bearer token lives: the Keychain in the app, memory in tests.
+/// `signIn` throws when the token cannot be kept, so the user hears about it at login rather than
+/// finding themselves signed out at the next launch.
 @MainActor
 public protocol SessionStore: AnyObject {
-    func signIn(token: String)
+    func signIn(token: String) throws
     func signOut()
 }
 

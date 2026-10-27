@@ -94,7 +94,14 @@ final class FakeAPI: PlantekalenderAPI, @unchecked Sendable {
 @MainActor
 final class MemorySession: SessionStore {
     var token: String?
-    func signIn(token: String) { self.token = token }
+    /// Fails saving the token, as a Keychain can.
+    var saveFails = false
+
+    func signIn(token: String) throws {
+        if saveFails { throw CocoaError(.fileWriteUnknown) }
+        self.token = token
+    }
+
     func signOut() { token = nil }
 }
 
@@ -204,6 +211,14 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(amountText(40, unit: "stk"), "40 stk.")
     }
 
+    func testSaysSoWhenTheTokenCannotBeSavedInsteadOfLookingSignedIn() async {
+        let session = MemorySession()
+        session.saveFails = true
+        let model = LoginModel(api: api, session: session)
+        await model.submit()
+        XCTAssertEqual(model.error, "Noget gik galt. Prøv igen.")
+    }
+
     func testRegistersANewUserInsteadOfLoggingInWhenInRegisterMode() async {
         let model = LoginModel(api: api, session: MemorySession())
         model.registering = true
@@ -215,7 +230,7 @@ final class ModelTests: XCTestCase {
     func testSignsOutOnThisDeviceEvenWhenTheServerCannotBeReached() async {
         api.offline = true
         let session = MemorySession()
-        session.signIn(token: "t1")
+        session.token = "t1"
         await HomeModel(auth: api, api: api, session: session).logout()
         XCTAssertNil(session.token)
     }
