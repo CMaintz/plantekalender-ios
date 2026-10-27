@@ -16,7 +16,10 @@ struct GardenView: View {
             ForEach(model.groups) { group in
                 Section(group.area?.name ?? "Uden bed") {
                     ForEach(group.items) { item in
-                        Text(name(item.plantId) + (item.variety.map { " (\($0))" } ?? ""))
+                        VStack(alignment: .leading) {
+                            Text(name(item.plantId) + (item.variety.map { " (\($0))" } ?? ""))
+                            Text(itemDetail(item)).font(.caption).foregroundStyle(.secondary)
+                        }
                     }
                     Button("+ Tilføj plante") { addingTo = group }
                 }

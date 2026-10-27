@@ -43,12 +43,15 @@ public struct Item: Codable, Sendable, Equatable, Identifiable {
     public var variety: String?
     public var season: Int?
 
-    public init(id: String, plantId: String, status: String, areaId: String? = nil, variety: String? = nil) {
+    public init(
+        id: String, plantId: String, status: String, areaId: String? = nil, variety: String? = nil, season: Int? = nil
+    ) {
         self.id = id
         self.plantId = plantId
         self.status = status
         self.areaId = areaId
         self.variety = variety
+        self.season = season
     }
 }
 

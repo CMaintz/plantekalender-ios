@@ -181,6 +181,15 @@ final class ModelTests: XCTestCase {
             groups.map { [$0.area?.name ?? "-"] + $0.items.map(\.id) }, [["Højbed", "i1"], ["-", "i2", "i3"]])
     }
 
+    func testDescribesAPlantingByItsStatusAndTheSeasonOfAnAnnual() {
+        XCTAssertEqual(
+            itemDetail(Item(id: "i1", plantId: "tomat", status: "planned", season: 2027)), "Planlagt, sæson 2027")
+        XCTAssertEqual(itemDetail(Item(id: "i2", plantId: "rabarber", status: "active")), "I haven")
+        XCTAssertEqual(
+            itemDetail(Item(id: "i3", plantId: "kaal", status: "removed", season: 2025)), "Fjernet, sæson 2025")
+        XCTAssertEqual(itemDetail(Item(id: "i4", plantId: "dild", status: "resting")), "resting")
+    }
+
     func testFormatsAmountsTheDanishWay() {
         XCTAssertEqual(amountText(3.25, unit: "kg"), "3,25 kg")
         XCTAssertEqual(amountText(40, unit: "stk"), "40 stk.")

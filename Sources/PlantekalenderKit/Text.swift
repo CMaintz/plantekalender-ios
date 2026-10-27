@@ -29,6 +29,15 @@ public func parseAmount(_ text: String) -> Double? {
     return value
 }
 
+// The web app's labels for a planting's status.
+private let itemStatuses = ["planned": "Planlagt", "active": "I haven", "removed": "Fjernet"]
+
+/// "Planlagt, sæson 2027". The server sets a season only on annuals, so perennials show their status alone.
+public func itemDetail(_ item: Item) -> String {
+    let status = itemStatuses[item.status] ?? item.status
+    return item.season.map { "\(status), sæson \($0)" } ?? status
+}
+
 private let danish = Locale(identifier: "da_DK")
 
 public func amountText(_ amount: Double, unit: String) -> String {
